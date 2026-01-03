@@ -186,7 +186,9 @@ Deno.serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, serviceKey, {
-      auth: { persistSession: false },
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      db: { schema: 'public' },
+      global: { headers: { Authorization: `Bearer ${serviceKey}` } },
     });
 
     const body = (await req.json()) as PlaceOrderBody;
