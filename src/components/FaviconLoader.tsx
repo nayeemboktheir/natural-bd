@@ -8,7 +8,7 @@ export default function FaviconLoader() {
         const { data, error } = await supabase
           .from('admin_settings')
           .select('key, value')
-          .in('key', ['favicon_url', 'site_name']);
+          .in('key', ['favicon_url', 'site_name', 'shop_name']);
 
         if (error) {
           console.error('Failed to load site settings:', error);
@@ -32,9 +32,10 @@ export default function FaviconLoader() {
             link.href = settings.favicon_url;
           }
 
-          // Update site title
-          if (settings.site_name) {
-            document.title = settings.site_name;
+          // Update site title (check both site_name and shop_name)
+          const siteName = settings.site_name || settings.shop_name;
+          if (siteName) {
+            document.title = siteName;
           }
         }
       } catch (error) {

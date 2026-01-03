@@ -193,6 +193,9 @@ export default function AdminShopSettings() {
     setSaving(true);
     try {
       await upsertSetting('shop_name', shopName);
+      await upsertSetting('site_name', shopName);
+      // Update document title immediately
+      document.title = shopName;
       toast.success('Settings saved successfully');
     } catch (error) {
       toast.error('Failed to save settings');
