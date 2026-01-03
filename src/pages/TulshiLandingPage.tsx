@@ -34,7 +34,7 @@ export default function TulshiLandingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [productVideo, setProductVideo] = useState('');
-  const [reviewVideo, setReviewVideo] = useState('');
+  const [reviewVideos, setReviewVideos] = useState<string[]>([]);
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -43,11 +43,18 @@ export default function TulshiLandingPage() {
       const { data } = await supabase
         .from('admin_settings')
         .select('key, value')
-        .in('key', ['landing_product_video', 'landing_review_video']);
+        .in('key', ['landing_product_video', 'landing_review_videos']);
       
       data?.forEach((item) => {
         if (item.key === 'landing_product_video') setProductVideo(item.value);
-        if (item.key === 'landing_review_video') setReviewVideo(item.value);
+        if (item.key === 'landing_review_videos') {
+          try {
+            const videos = JSON.parse(item.value);
+            setReviewVideos(videos.filter((v: string) => v.trim() !== ''));
+          } catch {
+            if (item.value) setReviewVideos([item.value]);
+          }
+        }
       });
     };
     fetchVideoSettings();
@@ -294,8 +301,8 @@ export default function TulshiLandingPage() {
         </section>
       )}
 
-      {/* Review Video Section */}
-      {reviewVideo && (
+      {/* Review Videos Section */}
+      {reviewVideos.length > 0 && (
         <section className="py-16 bg-muted/50">
           <div className="container-custom">
             <h2 className="text-2xl md:text-3xl font-bold text-center text-foreground mb-4">
@@ -304,22 +311,28 @@ export default function TulshiLandingPage() {
             <p className="text-center text-muted-foreground mb-8">
               আমাদের কাস্টমারদের মতামত এবং প্রোডাক্টের কার্যকারিতা সরাসরি দেখুন
             </p>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="max-w-3xl mx-auto rounded-2xl overflow-hidden shadow-xl"
-            >
-              <div className="relative aspect-video bg-muted">
-                <iframe
-                  src={reviewVideo.replace('watch?v=', 'embed/')}
-                  title="ভিডিও রিভিউ"
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            </motion.div>
+            <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+              {reviewVideos.map((video, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                  className="rounded-2xl overflow-hidden shadow-xl"
+                >
+                  <div className="relative aspect-video bg-muted">
+                    <iframe
+                      src={video.replace('watch?v=', 'embed/')}
+                      title={`ভিডিও রিভিউ ${index + 1}`}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </section>
       )}
