@@ -48,11 +48,25 @@ const AuthPage = () => {
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already logged in
+  // Redirect if already logged in - check admin role
   useEffect(() => {
-    if (user) {
-      navigate('/my-account');
-    }
+    const checkUserRole = async () => {
+      if (user) {
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
+        
+        if (roleData) {
+          navigate('/admin');
+        } else {
+          navigate('/my-account');
+        }
+      }
+    };
+    checkUserRole();
   }, [user, navigate]);
 
   const validateForm = () => {
@@ -107,7 +121,22 @@ const AuthPage = () => {
           }
         } else {
           toast.success('সফলভাবে লগইন হয়েছে!');
-          navigate('/my-account');
+          // Check if admin and redirect accordingly
+          const { data: { user: loggedInUser } } = await supabase.auth.getUser();
+          if (loggedInUser) {
+            const { data: roleData } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', loggedInUser.id)
+              .eq('role', 'admin')
+              .maybeSingle();
+            
+            if (roleData) {
+              navigate('/admin');
+            } else {
+              navigate('/my-account');
+            }
+          }
         }
       } else {
         // Use email if provided, otherwise use phone as email format
