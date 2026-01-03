@@ -34,7 +34,20 @@ export const createOrder = async (orderData: CreateOrderData): Promise<Order> =>
     },
   });
 
-  if (error) throw error;
+  if (error) {
+    const anyErr = error as any;
+    const details =
+      anyErr?.context?.body?.error ||
+      anyErr?.context?.body?.message ||
+      anyErr?.context?.body ||
+      anyErr?.message ||
+      'Failed to place order';
+    throw new Error(typeof details === 'string' ? details : JSON.stringify(details));
+  }
+
+  if (!data?.orderId) {
+    throw new Error('Order creation failed: empty response');
+  }
 
   const now = new Date().toISOString();
 

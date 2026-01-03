@@ -278,8 +278,11 @@ const CheckoutPage = () => {
     } catch (error) {
       console.error('Order error:', error);
       toast({
-        title: "Failed to place order",
-        description: "Please try again later.",
+        title: "অর্ডার করতে সমস্যা হয়েছে",
+        description:
+          error instanceof Error
+            ? error.message
+            : "আবার চেষ্টা করুন।",
         variant: "destructive",
       });
     } finally {
