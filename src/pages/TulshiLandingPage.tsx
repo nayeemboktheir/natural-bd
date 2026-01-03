@@ -500,7 +500,19 @@ export default function TulshiLandingPage() {
                     id="address"
                     type="text"
                     value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    onChange={(e) => {
+                      const address = e.target.value;
+                      setFormData({ ...formData, address });
+                      
+                      // Auto-detect shipping zone based on address
+                      const lowerAddress = address.toLowerCase();
+                      if (lowerAddress.includes('ঢাকা') || lowerAddress.includes('dhaka') || lowerAddress.includes('mirpur') || lowerAddress.includes('মিরপুর') || lowerAddress.includes('uttara') || lowerAddress.includes('উত্তরা') || lowerAddress.includes('gulshan') || lowerAddress.includes('গুলশান') || lowerAddress.includes('dhanmondi') || lowerAddress.includes('ধানমন্ডি') || lowerAddress.includes('motijheel') || lowerAddress.includes('মতিঝিল')) {
+                        setShippingZone('dhaka');
+                      } else if (address.length > 5) {
+                        setShippingZone('outside');
+                      }
+                    }}
+                    placeholder="এলাকা, থানা, জেলা"
                     required
                   />
                 </div>
