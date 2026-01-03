@@ -416,7 +416,7 @@ export default function AdminMarketing() {
         <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="facebook" className="gap-2">
             <Facebook className="h-4 w-4" />
-            Facebook
+            Meta Pixel
           </TabsTrigger>
           <TabsTrigger value="email" className="gap-2">
             <Mail className="h-4 w-4" />
@@ -430,17 +430,17 @@ export default function AdminMarketing() {
 
         {/* Facebook Tab */}
         <TabsContent value="facebook" className="space-y-6">
-          {/* Facebook Pixel */}
+          {/* Meta Pixel */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="h-5 w-5 text-blue-600" />
-                    Facebook Pixel
+                    Meta Pixel (Facebook Pixel)
                   </CardTitle>
                   <CardDescription>
-                    Track website visitors and their actions for Facebook Ads
+                    Track website visitors and their actions for Meta/Facebook Ads
                   </CardDescription>
                 </div>
                 <Switch
@@ -451,16 +451,16 @@ export default function AdminMarketing() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="pixelId">Pixel ID</Label>
+                <Label htmlFor="pixelId">Meta Pixel ID</Label>
                 <Input
                   id="pixelId"
                   value={pixelId}
                   onChange={(e) => setPixelId(e.target.value)}
-                  placeholder="Enter your Facebook Pixel ID (e.g., 123456789012345)"
+                  placeholder="Enter your Meta Pixel ID (e.g., 123456789012345)"
                   disabled={!pixelEnabled}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Find your Pixel ID in Facebook Events Manager → Data Sources
+                  Find your Pixel ID in Meta Events Manager → Data Sources → Your Pixel
                 </p>
               </div>
 
