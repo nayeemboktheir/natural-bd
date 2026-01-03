@@ -9,6 +9,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import productImage from '@/assets/tulshi-lungs-product.jpg';
+import tulshiPlusImage from '@/assets/tulshi-plus-product.jpg';
+import lungsGuardImage from '@/assets/lungs-guard-product.jpg';
 import logoImage from '@/assets/logo.png';
 
 const DEFAULT_PRODUCT = {
@@ -383,24 +385,38 @@ export default function TulshiLandingPage() {
           <p className="text-center text-muted-foreground mb-10">
             ডাবল একশন ন্যাচারাল সাপোর্ট – সুস্থতার চাবিকাঠি
           </p>
-          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              className="bg-primary/5 p-6 rounded-xl border border-primary/20"
+              className="bg-card rounded-2xl overflow-hidden shadow-lg border border-border"
             >
-              <h3 className="font-bold text-xl text-primary mb-2">Tulsi Plus</h3>
-              <p className="text-muted-foreground">ভাইরাস ও ফ্লু থেকে সুরক্ষা দেয় এবং ইমিউনিটি বাড়ায়।</p>
+              <img 
+                src={tulshiPlusImage} 
+                alt="Tulshi Plus - প্রাকৃতিকভাবে রোগ প্রতিরোধ ক্ষমতা বাড়ান" 
+                className="w-full h-64 object-cover"
+              />
+              <div className="p-6">
+                <h3 className="font-bold text-xl text-primary mb-2">Tulsi Plus</h3>
+                <p className="text-muted-foreground">ভাইরাস ও ফ্লু থেকে সুরক্ষা দেয় এবং ইমিউনিটি বাড়ায়।</p>
+              </div>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              className="bg-secondary/5 p-6 rounded-xl border border-secondary/20"
+              className="bg-card rounded-2xl overflow-hidden shadow-lg border border-border"
             >
-              <h3 className="font-bold text-xl text-secondary mb-2">Lungs Guard</h3>
-              <p className="text-muted-foreground">ফুসফুস পরিষ্কার করে এবং শ্বাস নেওয়া সহজ করে তোলে।</p>
+              <img 
+                src={lungsGuardImage} 
+                alt="Lungs Guard - ফুসফুসের সুরক্ষায় প্রাকৃতিক উপায়" 
+                className="w-full h-64 object-cover"
+              />
+              <div className="p-6">
+                <h3 className="font-bold text-xl text-secondary mb-2">Lungs Guard</h3>
+                <p className="text-muted-foreground">ফুসফুস পরিষ্কার করে এবং শ্বাস নেওয়া সহজ করে তোলে।</p>
+              </div>
             </motion.div>
           </div>
         </div>
