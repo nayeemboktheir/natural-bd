@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import productImage from '@/assets/tulshi-lungs-product.jpg';
+import logoImage from '@/assets/logo.png';
 
 const PRODUCT = {
   name: 'Tulshi Plus & Lungs Guard Capsole',
@@ -151,7 +152,7 @@ export default function TulshiLandingPage() {
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
         <div className="container-custom py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Leaf className="h-6 w-6 text-primary" />
+            <img src={logoImage} alt="Natural Touch BD" className="h-10 w-10 object-contain" />
             <span className="font-bold text-lg text-foreground">Natural Touch BD</span>
           </div>
           <div className="flex items-center gap-3">
