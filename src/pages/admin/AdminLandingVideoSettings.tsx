@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Save, Video, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Save, Video, Plus, Trash2, Tag } from 'lucide-react';
 
 const AdminLandingVideoSettings = () => {
   const { user, isLoading: authLoading } = useAuth();
@@ -17,6 +17,9 @@ const AdminLandingVideoSettings = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [productVideo, setProductVideo] = useState('');
   const [reviewVideos, setReviewVideos] = useState<string[]>(['']);
+  const [productName, setProductName] = useState('Tulshi Plus & Lungs Guard Capsole');
+  const [productPrice, setProductPrice] = useState('1550');
+  const [originalPrice, setOriginalPrice] = useState('2300');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -33,12 +36,15 @@ const AdminLandingVideoSettings = () => {
       const { data, error } = await supabase
         .from('admin_settings')
         .select('key, value')
-        .in('key', ['landing_product_video', 'landing_review_videos']);
+        .in('key', ['landing_product_video', 'landing_review_videos', 'landing_product_name', 'landing_product_price', 'landing_product_original_price']);
 
       if (error) throw error;
 
       data?.forEach((item) => {
         if (item.key === 'landing_product_video') setProductVideo(item.value);
+        if (item.key === 'landing_product_name') setProductName(item.value);
+        if (item.key === 'landing_product_price') setProductPrice(item.value);
+        if (item.key === 'landing_product_original_price') setOriginalPrice(item.value);
         if (item.key === 'landing_review_videos') {
           try {
             const videos = JSON.parse(item.value);
@@ -64,6 +70,9 @@ const AdminLandingVideoSettings = () => {
       const updates = [
         { key: 'landing_product_video', value: productVideo },
         { key: 'landing_review_videos', value: JSON.stringify(filteredVideos) },
+        { key: 'landing_product_name', value: productName },
+        { key: 'landing_product_price', value: productPrice },
+        { key: 'landing_product_original_price', value: originalPrice },
       ];
 
       for (const update of updates) {
@@ -141,6 +150,57 @@ const AdminLandingVideoSettings = () => {
             সেভ করুন
           </Button>
         </div>
+
+        {/* Product Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Tag className="h-5 w-5" />
+              প্রোডাক্ট সেটিংস
+            </CardTitle>
+            <CardDescription>প্রোডাক্টের নাম ও দাম পরিবর্তন করুন</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>প্রোডাক্ট নাম</Label>
+              <Input
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder="প্রোডাক্টের নাম"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>বিক্রয় মূল্য (৳)</Label>
+                <Input
+                  type="number"
+                  value={productPrice}
+                  onChange={(e) => setProductPrice(e.target.value)}
+                  placeholder="1550"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>আসল মূল্য (৳) - কাটা দাম</Label>
+                <Input
+                  type="number"
+                  value={originalPrice}
+                  onChange={(e) => setOriginalPrice(e.target.value)}
+                  placeholder="2300"
+                />
+              </div>
+            </div>
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">প্রিভিউ:</p>
+              <p className="text-lg font-bold">
+                ৳{productPrice} 
+                <span className="text-sm text-muted-foreground line-through ml-2">৳{originalPrice}</span>
+                <span className="text-sm text-green-600 ml-2">
+                  ({Math.round(((Number(originalPrice) - Number(productPrice)) / Number(originalPrice)) * 100)}% ছাড়)
+                </span>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Product Video */}
         <Card>

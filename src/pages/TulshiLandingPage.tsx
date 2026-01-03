@@ -11,9 +11,9 @@ import { supabase } from '@/integrations/supabase/client';
 import productImage from '@/assets/tulshi-lungs-product.jpg';
 import logoImage from '@/assets/logo.png';
 
-const PRODUCT = {
+const DEFAULT_PRODUCT = {
   name: 'Tulshi Plus & Lungs Guard Capsole',
-  price: 1750,
+  price: 1550,
   originalPrice: 2300,
   image: productImage,
 };
@@ -37,16 +37,26 @@ export default function TulshiLandingPage() {
   const [reviewVideos, setReviewVideos] = useState<string[]>([]);
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [product, setProduct] = useState(DEFAULT_PRODUCT);
 
   useEffect(() => {
-    const fetchVideoSettings = async () => {
+    const fetchSettings = async () => {
       const { data } = await supabase
         .from('admin_settings')
         .select('key, value')
-        .in('key', ['landing_product_video', 'landing_review_videos']);
+        .in('key', ['landing_product_video', 'landing_review_videos', 'landing_product_name', 'landing_product_price', 'landing_product_original_price']);
       
       data?.forEach((item) => {
         if (item.key === 'landing_product_video') setProductVideo(item.value);
+        if (item.key === 'landing_product_name') {
+          setProduct(prev => ({ ...prev, name: item.value }));
+        }
+        if (item.key === 'landing_product_price') {
+          setProduct(prev => ({ ...prev, price: Number(item.value) }));
+        }
+        if (item.key === 'landing_product_original_price') {
+          setProduct(prev => ({ ...prev, originalPrice: Number(item.value) }));
+        }
         if (item.key === 'landing_review_videos') {
           try {
             const videos = JSON.parse(item.value);
@@ -57,7 +67,7 @@ export default function TulshiLandingPage() {
         }
       });
     };
-    fetchVideoSettings();
+    fetchSettings();
 
     // Check auth status
     const checkAuth = async () => {
@@ -96,7 +106,7 @@ export default function TulshiLandingPage() {
     return url;
   };
 
-  const subtotal = PRODUCT.price * quantity;
+  const subtotal = product.price * quantity;
   const shippingCost = SHIPPING[shippingZone];
   const total = subtotal + shippingCost;
 
@@ -142,9 +152,9 @@ export default function TulshiLandingPage() {
         .from('order_items')
         .insert({
           order_id: order.id,
-          product_name: PRODUCT.name,
-          product_image: PRODUCT.image,
-          price: PRODUCT.price,
+          product_name: product.name,
+          product_image: product.image,
+          price: product.price,
           quantity: quantity,
         });
 
@@ -240,7 +250,7 @@ export default function TulshiLandingPage() {
             >
               <img
                 src={productImage}
-                alt={PRODUCT.name}
+                alt={product.name}
                 className="w-full max-w-md mx-auto rounded-2xl shadow-xl"
               />
             </motion.div>
@@ -423,8 +433,8 @@ export default function TulshiLandingPage() {
         <div className="container-custom text-center">
           <h2 className="text-2xl md:text-3xl font-bold mb-4">আজই কম্বো অর্ডার করুন</h2>
           <div className="flex items-center justify-center gap-3 mb-6">
-            <span className="text-3xl font-bold">৳ {PRODUCT.price.toLocaleString()}</span>
-            <span className="text-xl line-through opacity-70">৳ {PRODUCT.originalPrice.toLocaleString()}</span>
+            <span className="text-3xl font-bold">৳ {product.price.toLocaleString()}</span>
+            <span className="text-xl line-through opacity-70">৳ {product.originalPrice.toLocaleString()}</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <a href="https://wa.me/8801330576687" target="_blank" rel="noopener noreferrer">
@@ -456,10 +466,10 @@ export default function TulshiLandingPage() {
               <h3 className="font-semibold text-lg text-foreground mb-4">প্রোডাক্ট সিলেক্ট করে বাকি তথ্য দিনঃ</h3>
               
               <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg mb-4">
-                <img src={productImage} alt={PRODUCT.name} className="w-20 h-20 object-cover rounded-lg" />
+                <img src={productImage} alt={product.name} className="w-20 h-20 object-cover rounded-lg" />
                 <div className="flex-1">
-                  <p className="font-medium text-foreground">{PRODUCT.name}</p>
-                  <p className="text-primary font-semibold">৳ {PRODUCT.price.toLocaleString()}</p>
+                  <p className="font-medium text-foreground">{product.name}</p>
+                  <p className="text-primary font-semibold">৳ {product.price.toLocaleString()}</p>
                 </div>
               </div>
 
