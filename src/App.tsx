@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { store } from '@/store/store';
 import { AuthProvider } from '@/hooks/useAuth';
+import { FacebookPixelTracker } from '@/components/tracking/FacebookPixelTracker';
 import TulshiLandingPage from '@/pages/TulshiLandingPage';
 import OrderConfirmationPage from '@/pages/OrderConfirmationPage';
 import AuthPage from '@/pages/AuthPage';
@@ -42,6 +43,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <FacebookPixelTracker />
             <Routes>
               {/* Main Landing Page */}
               <Route path="/" element={<TulshiLandingPage />} />
