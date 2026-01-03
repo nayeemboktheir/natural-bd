@@ -1,1 +1,13 @@
 project_id = "slyfjylwulirkipicizq"
+
+[functions.place-order]
+verify_jwt = false
+
+[functions.facebook-capi]
+verify_jwt = false
+
+[functions.send-order-email]
+verify_jwt = false
+
+[functions.send-sms]
+verify_jwt = false
