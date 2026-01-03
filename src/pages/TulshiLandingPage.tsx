@@ -395,7 +395,7 @@ export default function TulshiLandingPage() {
               <img 
                 src={tulshiPlusImage} 
                 alt="Tulshi Plus - প্রাকৃতিকভাবে রোগ প্রতিরোধ ক্ষমতা বাড়ান" 
-                className="w-full h-64 object-cover"
+                className="w-full h-auto object-contain"
               />
               <div className="p-6">
                 <h3 className="font-bold text-xl text-primary mb-2">Tulsi Plus</h3>
@@ -411,7 +411,7 @@ export default function TulshiLandingPage() {
               <img 
                 src={lungsGuardImage} 
                 alt="Lungs Guard - ফুসফুসের সুরক্ষায় প্রাকৃতিক উপায়" 
-                className="w-full h-64 object-cover"
+                className="w-full h-auto object-contain"
               />
               <div className="p-6">
                 <h3 className="font-bold text-xl text-secondary mb-2">Lungs Guard</h3>
