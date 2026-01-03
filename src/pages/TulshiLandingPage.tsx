@@ -77,6 +77,25 @@ export default function TulshiLandingPage() {
     checkAuth();
   }, []);
 
+  const getEmbedUrl = (url: string) => {
+    if (!url) return '';
+    // Handle YouTube Shorts
+    if (url.includes('/shorts/')) {
+      const videoId = url.split('/shorts/')[1]?.split('?')[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    // Handle regular YouTube links
+    if (url.includes('watch?v=')) {
+      return url.replace('watch?v=', 'embed/');
+    }
+    // Handle youtu.be short links
+    if (url.includes('youtu.be/')) {
+      const videoId = url.split('youtu.be/')[1]?.split('?')[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    return url;
+  };
+
   const subtotal = PRODUCT.price * quantity;
   const shippingCost = SHIPPING[shippingZone];
   const total = subtotal + shippingCost;
@@ -289,7 +308,7 @@ export default function TulshiLandingPage() {
             >
               <div className="relative aspect-video bg-muted">
                 <iframe
-                  src={productVideo.replace('watch?v=', 'embed/')}
+                  src={getEmbedUrl(productVideo)}
                   title="প্রোডাক্ট পরিচিতি"
                   className="w-full h-full"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -323,7 +342,7 @@ export default function TulshiLandingPage() {
                 >
                   <div className="relative aspect-video bg-muted">
                     <iframe
-                      src={video.replace('watch?v=', 'embed/')}
+                      src={getEmbedUrl(video)}
                       title={`ভিডিও রিভিউ ${index + 1}`}
                       className="w-full h-full"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
