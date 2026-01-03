@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Phone, MessageCircle, Leaf, Shield, Wind, ChevronDown, ChevronUp, Minus, Plus, Play } from 'lucide-react';
+import { Check, Phone, MessageCircle, Leaf, Shield, Wind, ChevronDown, ChevronUp, Minus, Plus, Play, User, LayoutDashboard } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,6 +34,8 @@ export default function TulshiLandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [productVideo, setProductVideo] = useState('');
   const [reviewVideo, setReviewVideo] = useState('');
+  const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const fetchVideoSettings = async () => {
@@ -47,6 +50,23 @@ export default function TulshiLandingPage() {
       });
     };
     fetchVideoSettings();
+
+    // Check auth status
+    const checkAuth = async () => {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      setUser(currentUser);
+      
+      if (currentUser) {
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', currentUser.id)
+          .eq('role', 'admin')
+          .maybeSingle();
+        setIsAdmin(!!roleData);
+      }
+    };
+    checkAuth();
   }, []);
 
   const subtotal = PRODUCT.price * quantity;
@@ -134,9 +154,16 @@ export default function TulshiLandingPage() {
             <Leaf className="h-6 w-6 text-primary" />
             <span className="font-bold text-lg text-foreground">Natural Touch BD</span>
           </div>
-          <a href="#order">
-            <Button className="bg-primary hover:bg-primary/90">অর্ডার করুন</Button>
-          </a>
+          <div className="flex items-center gap-3">
+            <a href="#order">
+              <Button className="bg-primary hover:bg-primary/90">অর্ডার করুন</Button>
+            </a>
+            <Link to={user ? (isAdmin ? '/admin' : '/my-account') : '/auth'}>
+              <Button variant="outline" size="icon" className="rounded-full">
+                {user && isAdmin ? <LayoutDashboard className="h-5 w-5" /> : <User className="h-5 w-5" />}
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 
