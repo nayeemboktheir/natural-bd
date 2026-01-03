@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Phone, MessageCircle, Leaf, Shield, Wind, ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
+import { Check, Phone, MessageCircle, Leaf, Shield, Wind, ChevronDown, ChevronUp, Minus, Plus, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,6 +31,23 @@ export default function TulshiLandingPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [productVideo, setProductVideo] = useState('');
+  const [reviewVideo, setReviewVideo] = useState('');
+
+  useEffect(() => {
+    const fetchVideoSettings = async () => {
+      const { data } = await supabase
+        .from('admin_settings')
+        .select('key, value')
+        .in('key', ['landing_product_video', 'landing_review_video']);
+      
+      data?.forEach((item) => {
+        if (item.key === 'landing_product_video') setProductVideo(item.value);
+        if (item.key === 'landing_review_video') setReviewVideo(item.value);
+      });
+    };
+    fetchVideoSettings();
+  }, []);
 
   const subtotal = PRODUCT.price * quantity;
   const shippingCost = SHIPPING[shippingZone];
@@ -218,6 +235,66 @@ export default function TulshiLandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Product Video Section */}
+      {productVideo && (
+        <section className="py-16">
+          <div className="container-custom">
+            <h2 className="text-2xl md:text-3xl font-bold text-center text-foreground mb-4">
+              প্রোডাক্ট পরিচিতি ও কার্যকারিতা
+            </h2>
+            <p className="text-center text-muted-foreground mb-8">
+              আমাদের প্রোডাক্টের বিস্তারিত জানুন এবং দেখুন কিভাবে এটি কাজ করে
+            </p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="max-w-3xl mx-auto rounded-2xl overflow-hidden shadow-xl"
+            >
+              <div className="relative aspect-video bg-muted">
+                <iframe
+                  src={productVideo.replace('watch?v=', 'embed/')}
+                  title="প্রোডাক্ট পরিচিতি"
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </motion.div>
+          </div>
+        </section>
+      )}
+
+      {/* Review Video Section */}
+      {reviewVideo && (
+        <section className="py-16 bg-muted/50">
+          <div className="container-custom">
+            <h2 className="text-2xl md:text-3xl font-bold text-center text-foreground mb-4">
+              ভিডিও রিভিউ ও বিস্তারিত
+            </h2>
+            <p className="text-center text-muted-foreground mb-8">
+              আমাদের কাস্টমারদের মতামত এবং প্রোডাক্টের কার্যকারিতা সরাসরি দেখুন
+            </p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="max-w-3xl mx-auto rounded-2xl overflow-hidden shadow-xl"
+            >
+              <div className="relative aspect-video bg-muted">
+                <iframe
+                  src={reviewVideo.replace('watch?v=', 'embed/')}
+                  title="ভিডিও রিভিউ"
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </motion.div>
+          </div>
+        </section>
+      )}
 
       {/* Solution Section */}
       <section className="py-16">

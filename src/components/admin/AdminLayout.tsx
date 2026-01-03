@@ -22,6 +22,7 @@ import {
   Share2,
   BarChart3,
   Home,
+  Video,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -61,6 +62,7 @@ const adminNavItems = [
   { title: 'Shop Settings', url: '/admin/shop-settings', icon: Settings },
   { title: 'Site Settings', url: '/admin/site-settings', icon: Settings },
   { title: 'Home Page Edit', url: '/admin/home-page-edit', icon: Home },
+  { title: 'Landing Video', url: '/admin/landing-video-settings', icon: Video },
 ];
 
 function AdminSidebar() {
