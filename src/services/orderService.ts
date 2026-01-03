@@ -14,25 +14,34 @@ interface CreateOrderData {
 }
 
 export const createOrder = async (orderData: CreateOrderData): Promise<Order> => {
-  const { data, error } = await supabase.functions.invoke('place-order', {
-    body: {
-      userId: orderData.userId,
-      items: orderData.items.map((i) => ({
-        productId: i.product.id,
-        quantity: i.quantity,
-        // Provide extra fields so orders can still be placed when the catalog uses non-UUID mock ids
-        productName: i.product.name,
-        productImage: i.product.images?.[0] ?? null,
-        price: i.product.price,
-      })),
-      shipping: {
-        name: orderData.shippingAddress.name,
-        phone: orderData.shippingAddress.phone,
-        address: orderData.shippingAddress.address,
+  let invokeResult: { data: any; error: any };
+
+  try {
+    invokeResult = await supabase.functions.invoke('place-order', {
+      body: {
+        userId: orderData.userId,
+        items: orderData.items.map((i) => ({
+          productId: i.product.id,
+          quantity: i.quantity,
+          // Provide extra fields so orders can still be placed when the catalog uses non-UUID mock ids
+          productName: i.product.name,
+          productImage: i.product.images?.[0] ?? null,
+          price: i.product.price,
+        })),
+        shipping: {
+          name: orderData.shippingAddress.name,
+          phone: orderData.shippingAddress.phone,
+          address: orderData.shippingAddress.address,
+        },
+        shippingZone: orderData.shippingZone || 'outside_dhaka',
       },
-      shippingZone: orderData.shippingZone || 'outside_dhaka',
-    },
-  });
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : typeof e === 'string' ? e : JSON.stringify(e);
+    throw new Error(`Network error while placing order: ${msg}`);
+  }
+
+  const { data, error } = invokeResult;
 
   if (error) {
     const anyErr = error as any;
@@ -41,6 +50,7 @@ export const createOrder = async (orderData: CreateOrderData): Promise<Order> =>
       anyErr?.context?.body?.message ||
       anyErr?.context?.body ||
       anyErr?.message ||
+      anyErr?.name ||
       'Failed to place order';
     throw new Error(typeof details === 'string' ? details : JSON.stringify(details));
   }

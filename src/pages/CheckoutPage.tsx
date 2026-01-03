@@ -277,12 +277,15 @@ const CheckoutPage = () => {
       });
     } catch (error) {
       console.error('Order error:', error);
+      const msg =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : JSON.stringify(error);
       toast({
         title: "অর্ডার করতে সমস্যা হয়েছে",
-        description:
-          error instanceof Error
-            ? error.message
-            : "আবার চেষ্টা করুন।",
+        description: msg || "আবার চেষ্টা করুন।",
         variant: "destructive",
       });
     } finally {
