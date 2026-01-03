@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Phone, MessageCircle, Leaf, Shield, Wind, ChevronDown, ChevronUp, Minus, Plus, Play, User, LayoutDashboard } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +24,7 @@ const SHIPPING = {
 };
 
 export default function TulshiLandingPage() {
+  const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
   const [shippingZone, setShippingZone] = useState<'dhaka' | 'outside'>('dhaka');
   const [formData, setFormData] = useState({
@@ -157,9 +158,17 @@ export default function TulshiLandingPage() {
 
       if (!data?.orderId) throw new Error('Order was not created');
 
-      toast.success('অর্ডার সফলভাবে সম্পন্ন হয়েছে!');
-      setFormData({ phone: '', name: '', address: '' });
-      setQuantity(1);
+      // Navigate to thank you page
+      navigate('/order-confirmation', {
+        state: {
+          orderNumber: data.orderNumber || data.orderId,
+          customerName: formData.name,
+          phone: formData.phone,
+          total: data.total || total,
+          fromLandingPage: true,
+          landingPageSlug: 'tulshi',
+        },
+      });
     } catch (error) {
       console.error('Order error:', error);
       const msg = error instanceof Error ? error.message : 'অর্ডার করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
