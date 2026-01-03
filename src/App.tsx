@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { store } from '@/store/store';
 import { AuthProvider } from '@/hooks/useAuth';
 import TulshiLandingPage from '@/pages/TulshiLandingPage';
+import AuthPage from '@/pages/AuthPage';
 import AdminLayout from '@/components/admin/AdminLayout';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
 import AdminProducts from '@/pages/admin/AdminProducts';
@@ -43,6 +44,7 @@ const App = () => (
             <Routes>
               {/* Main Landing Page */}
               <Route path="/" element={<TulshiLandingPage />} />
+              <Route path="/auth" element={<AuthPage />} />
               
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
