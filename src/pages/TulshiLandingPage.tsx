@@ -112,7 +112,7 @@ export default function TulshiLandingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.phone || !formData.name || !formData.address) {
       toast.error('সব তথ্য পূরণ করুন');
       return;
@@ -121,51 +121,49 @@ export default function TulshiLandingPage() {
     setIsSubmitting(true);
 
     try {
-      // Generate order number
-      const orderNumber = `ORD-${Date.now()}`;
+      // Create order via backend function (bypasses RLS safely)
+      const { data, error } = await supabase.functions.invoke('place-order', {
+        body: {
+          userId: user?.id ?? null,
+          items: [
+            {
+              productId: 'tulshi-combo', // non-UUID => will be treated as custom item
+              productName: product.name,
+              productImage: product.image,
+              price: product.price,
+              quantity,
+            },
+          ],
+          shipping: {
+            name: formData.name,
+            phone: formData.phone,
+            address: formData.address,
+          },
+          shippingZone: shippingZone === 'dhaka' ? 'inside_dhaka' : 'outside_dhaka',
+          orderSource: 'web',
+          notes: 'LP:tulshi',
+        },
+      });
 
-      // Create order
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          order_number: orderNumber,
-          shipping_name: formData.name,
-          shipping_phone: formData.phone,
-          shipping_street: formData.address,
-          shipping_city: shippingZone === 'dhaka' ? 'ঢাকা' : 'ঢাকার বাইরে',
-          shipping_district: shippingZone === 'dhaka' ? 'ঢাকা' : 'বাংলাদেশ',
-          subtotal: subtotal,
-          shipping_cost: shippingCost,
-          total: total,
-          status: 'pending',
-          payment_method: 'cod',
-          payment_status: 'pending',
-          order_source: 'landing_page',
-        })
-        .select()
-        .single();
+      if (error) {
+        const anyErr = error as any;
+        const details =
+          anyErr?.context?.body?.error ||
+          anyErr?.context?.body?.message ||
+          anyErr?.message ||
+          'অর্ডার করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
+        throw new Error(typeof details === 'string' ? details : JSON.stringify(details));
+      }
 
-      if (orderError) throw orderError;
-
-      // Create order item
-      const { error: itemError } = await supabase
-        .from('order_items')
-        .insert({
-          order_id: order.id,
-          product_name: product.name,
-          product_image: product.image,
-          price: product.price,
-          quantity: quantity,
-        });
-
-      if (itemError) throw itemError;
+      if (!data?.orderId) throw new Error('Order was not created');
 
       toast.success('অর্ডার সফলভাবে সম্পন্ন হয়েছে!');
       setFormData({ phone: '', name: '', address: '' });
       setQuantity(1);
     } catch (error) {
       console.error('Order error:', error);
-      toast.error('অর্ডার করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।');
+      const msg = error instanceof Error ? error.message : 'অর্ডার করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
