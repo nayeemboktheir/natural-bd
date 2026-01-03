@@ -85,8 +85,21 @@ const AdminLandingVideoSettings = () => {
 
   const getEmbedPreview = (url: string) => {
     if (!url) return null;
-    const embedUrl = url.replace('watch?v=', 'embed/');
-    return embedUrl;
+    // Handle YouTube Shorts
+    if (url.includes('/shorts/')) {
+      const videoId = url.split('/shorts/')[1]?.split('?')[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    // Handle regular YouTube links
+    if (url.includes('watch?v=')) {
+      return url.replace('watch?v=', 'embed/');
+    }
+    // Handle youtu.be short links
+    if (url.includes('youtu.be/')) {
+      const videoId = url.split('youtu.be/')[1]?.split('?')[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    return url;
   };
 
   const addReviewVideo = () => {
