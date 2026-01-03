@@ -202,6 +202,7 @@ export default function TulshiLandingPage() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6 }}
+              className="text-center md:text-left"
             >
               <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
                 100% Herbal | Ayurvedic Support
@@ -213,7 +214,7 @@ export default function TulshiLandingPage() {
                 <span className="font-semibold text-foreground">Tulsi Plus</span> এবং{' '}
                 <span className="font-semibold text-foreground">Lungs Guard</span> – ঠান্ডা, কাশি ও শ্বাসযন্ত্রের সুরক্ষায় একটি কমপ্লিট ন্যাচারাল কম্বো।
               </p>
-              <div className="flex flex-wrap gap-4 mb-6">
+              <div className="flex flex-wrap gap-4 mb-6 justify-center md:justify-start">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Check className="h-4 w-4 text-primary" />
                   <span>হারবাল ফর্মুলা</span>
@@ -223,7 +224,7 @@ export default function TulshiLandingPage() {
                   <span>ল্যাব টেস্টেড</span>
                 </div>
               </div>
-              <a href="#order">
+              <a href="#order" className="inline-block">
                 <Button size="lg" className="bg-primary hover:bg-primary/90 gap-2">
                   <MessageCircle className="h-5 w-5" />
                   এখনই কম্বো অর্ডার করুন
