@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { store } from '@/store/store';
 import { AuthProvider } from '@/hooks/useAuth';
 import { FacebookPixelTracker } from '@/components/tracking/FacebookPixelTracker';
+import GoogleAnalyticsTracker from '@/components/tracking/GoogleAnalyticsTracker';
 import TulshiLandingPage from '@/pages/TulshiLandingPage';
 import OrderConfirmationPage from '@/pages/OrderConfirmationPage';
 import AuthPage from '@/pages/AuthPage';
@@ -44,6 +45,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <FacebookPixelTracker />
+            <GoogleAnalyticsTracker />
             <Routes>
               {/* Main Landing Page */}
               <Route path="/" element={<TulshiLandingPage />} />

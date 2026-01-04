@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.courier-history]
 verify_jwt = false
+
+[functions.google-analytics]
+verify_jwt = false
