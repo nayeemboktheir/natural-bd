@@ -524,9 +524,17 @@ export default function AdminMarketing() {
               </div>
 
               {capiEnabled && capiToken && (
-                <div className="bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-                  <p className="text-sm text-purple-800 dark:text-purple-200">
-                    ✓ CAPI will send: Purchase events with order data for better attribution
+                <div className="bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-800 rounded-lg p-4 space-y-2">
+                  <p className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                    ✓ Server-Side Tracking Active
+                  </p>
+                  <ul className="text-xs text-purple-700 dark:text-purple-300 space-y-1 list-disc list-inside">
+                    <li>InitiateCheckout - When users start checkout</li>
+                    <li>Purchase - Order completion with full customer data</li>
+                    <li>Includes: Phone, Name, IP, User Agent, Meta ClickID (fbc), Browser ID (fbp)</li>
+                  </ul>
+                  <p className="text-xs text-purple-600 dark:text-purple-400 pt-2">
+                    💡 Server-side events bypass ad blockers and improve match quality scores
                   </p>
                 </div>
               )}

@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ShoppingBag, Truck, ArrowLeft, Loader2, CheckCircle, Banknote } from 'lucide-react';
 import { ShippingMethodSelector, ShippingZone, SHIPPING_RATES } from '@/components/checkout/ShippingMethodSelector';
 import { useFacebookPixel } from '@/hooks/useFacebookPixel';
+import { useServerTracking } from '@/hooks/useServerTracking';
 
 interface ShippingForm {
   name: string;
@@ -35,7 +36,8 @@ const CheckoutPage = () => {
   const dispatch = useAppDispatch();
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
-  const { trackInitiateCheckout, isReady } = useFacebookPixel();
+  const { trackInitiateCheckout, isReady, setUserData } = useFacebookPixel();
+  const { trackInitiateCheckout: trackServerCheckout, trackPurchase: trackServerPurchase } = useServerTracking();
   
   const cartItems = useAppSelector(selectCartItems);
   const cartTotal = useAppSelector(selectCartTotal);
@@ -103,19 +105,37 @@ const CheckoutPage = () => {
     }
   }, [cartItems, authLoading, navigate]);
 
-  // Track InitiateCheckout event once
+  // Track InitiateCheckout event once (both client and server side)
   useEffect(() => {
     if (isReady && cartItems.length > 0 && !hasTrackedCheckout.current) {
-      console.log('Firing InitiateCheckout event');
+      console.log('Firing InitiateCheckout event (client + server)');
+      
+      const contentIds = cartItems.map(item => item.product.id);
+      const numItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+      
+      // Client-side tracking
       trackInitiateCheckout({
-        content_ids: cartItems.map(item => item.product.id),
-        num_items: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+        content_ids: contentIds,
+        num_items: numItems,
         value: cartTotal,
         currency: 'BDT',
       });
+      
+      // Server-side tracking via CAPI
+      trackServerCheckout({
+        contentIds,
+        value: cartTotal,
+        numItems,
+        currency: 'BDT',
+      }).then(result => {
+        console.log('[CAPI] InitiateCheckout result:', result);
+      }).catch(err => {
+        console.error('[CAPI] InitiateCheckout error:', err);
+      });
+      
       hasTrackedCheckout.current = true;
     }
-  }, [isReady, cartItems, cartTotal, trackInitiateCheckout]);
+  }, [isReady, cartItems, cartTotal, trackInitiateCheckout, trackServerCheckout]);
 
   // Save draft order when form changes
   const saveDraftOrder = useCallback(async () => {
@@ -234,6 +254,18 @@ const CheckoutPage = () => {
     setIsSubmitting(true);
     
     try {
+      // Extract first and last name from full name
+      const nameParts = shippingForm.name.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      // Update client-side pixel with user data for better matching
+      setUserData?.({
+        phone: shippingForm.phone,
+        firstName,
+        lastName,
+      });
+      
       const order = await createOrder({
         userId: user?.id || null,
         items: cartItems,
@@ -244,6 +276,25 @@ const CheckoutPage = () => {
         },
         paymentMethod: 'cod',
         shippingZone: shippingZone,
+      });
+      
+      // Track Purchase via Server-Side CAPI (most important for conversion tracking)
+      const contentIds = cartItems.map(item => item.product.id);
+      trackServerPurchase({
+        orderId: order.id,
+        contentIds,
+        value: total,
+        numItems: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+        currency: 'BDT',
+        userData: {
+          phone: shippingForm.phone,
+          firstName,
+          lastName,
+        },
+      }).then(result => {
+        console.log('[CAPI] Purchase tracking result:', result);
+      }).catch(err => {
+        console.error('[CAPI] Purchase tracking error:', err);
       });
       
       // Mark draft order as converted
