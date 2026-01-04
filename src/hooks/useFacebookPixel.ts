@@ -19,23 +19,80 @@ interface FacebookPixelConfig {
   enabled: boolean;
 }
 
+interface UserData {
+  email?: string;
+  phone?: string;
+  firstName?: string;
+  lastName?: string;
+  externalId?: string;
+}
+
 let pixelConfig: FacebookPixelConfig | null = null;
 let isPixelLoading = false;
 let pixelLoadPromise: Promise<void> | null = null;
 
-const loadPixelScript = (pixelId: string): Promise<void> => {
+// Capture and store fbclid from URL for better event matching
+const captureFbclid = (): string | null => {
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const fbclid = urlParams.get('fbclid');
+    
+    if (fbclid) {
+      // Store in sessionStorage for use across page navigations
+      sessionStorage.setItem('_fbclid', fbclid);
+      console.log('Meta ClickID captured:', fbclid.substring(0, 20) + '...');
+      return fbclid;
+    }
+    
+    // Return stored fbclid if available
+    return sessionStorage.getItem('_fbclid');
+  } catch (e) {
+    console.error('Error capturing fbclid:', e);
+    return null;
+  }
+};
+
+// Generate or retrieve a consistent external ID for the user
+const getExternalId = (): string => {
+  try {
+    let externalId = localStorage.getItem('_fb_external_id');
+    if (!externalId) {
+      externalId = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+      localStorage.setItem('_fb_external_id', externalId);
+    }
+    return externalId;
+  } catch (e) {
+    return 'user_' + Date.now();
+  }
+};
+
+const loadPixelScript = (pixelId: string, userData?: UserData): Promise<void> => {
   if (pixelLoadPromise) return pixelLoadPromise;
 
   isPixelLoading = true;
 
-  pixelLoadPromise = new Promise((resolve) => {
-    console.log('Loading Facebook Pixel script...');
+  // Capture fbclid on initial load
+  captureFbclid();
 
-    // If fbq already exists, just (re)initialize with our pixel ID
+  pixelLoadPromise = new Promise((resolve) => {
+    console.log('Loading Meta Pixel script with Advanced Matching...');
+
+    // Build advanced matching data
+    const advancedMatchingData: Record<string, string> = {
+      external_id: getExternalId(),
+    };
+
+    // Add user data if available
+    if (userData?.email) advancedMatchingData.em = userData.email.toLowerCase().trim();
+    if (userData?.phone) advancedMatchingData.ph = userData.phone.replace(/\D/g, '');
+    if (userData?.firstName) advancedMatchingData.fn = userData.firstName.toLowerCase().trim();
+    if (userData?.lastName) advancedMatchingData.ln = userData.lastName.toLowerCase().trim();
+
+    // If fbq already exists, just (re)initialize with our pixel ID and advanced matching
     if (window.fbq && typeof window.fbq === 'function') {
-      window.fbq('init', pixelId);
+      window.fbq('init', pixelId, advancedMatchingData);
       window.fbq('track', 'PageView');
-      console.log('Facebook Pixel initialized with ID:', pixelId);
+      console.log('Meta Pixel initialized with Advanced Matching:', Object.keys(advancedMatchingData));
       isPixelLoading = false;
       resolve();
       return;
@@ -59,12 +116,12 @@ const loadPixelScript = (pixelId: string): Promise<void> => {
       s.parentNode.insertBefore(t, s);
     })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
 
-    // Initialize the pixel after script is ready
+    // Initialize the pixel after script is ready with advanced matching
     const checkAndInit = () => {
       if (window.fbq && typeof window.fbq === 'function') {
-        window.fbq('init', pixelId);
+        window.fbq('init', pixelId, advancedMatchingData);
         window.fbq('track', 'PageView');
-        console.log('Facebook Pixel initialized with ID:', pixelId);
+        console.log('Meta Pixel initialized with Advanced Matching:', Object.keys(advancedMatchingData));
         isPixelLoading = false;
         resolve();
       } else {
@@ -93,6 +150,9 @@ export const useFacebookPixel = () => {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    // Capture fbclid on every page load
+    captureFbclid();
+
     const loadConfig = async () => {
       try {
         const { data, error } = await supabase
@@ -119,7 +179,7 @@ export const useFacebookPixel = () => {
         pixelConfig = newConfig;
         setConfig(newConfig);
 
-        console.log('Facebook Pixel config loaded:', { enabled: newConfig.enabled, hasPixelId: !!id });
+        console.log('Meta Pixel config loaded:', { enabled: newConfig.enabled, hasPixelId: !!id });
 
         if (newConfig.enabled) {
           await loadPixelScript(newConfig.pixelId);
@@ -128,13 +188,29 @@ export const useFacebookPixel = () => {
           setIsReady(false);
         }
       } catch (error) {
-        console.error('Failed to load Facebook Pixel config:', error);
+        console.error('Failed to load Meta Pixel config:', error);
       }
     };
 
     loadConfig();
   }, []);
 
+  // Update user data for better matching (call when user logs in or provides info)
+  const setUserData = useCallback((userData: UserData) => {
+    if (config?.enabled && window.fbq) {
+      const advancedMatchingData: Record<string, string> = {
+        external_id: userData.externalId || getExternalId(),
+      };
+      
+      if (userData.email) advancedMatchingData.em = userData.email.toLowerCase().trim();
+      if (userData.phone) advancedMatchingData.ph = userData.phone.replace(/\D/g, '');
+      if (userData.firstName) advancedMatchingData.fn = userData.firstName.toLowerCase().trim();
+      if (userData.lastName) advancedMatchingData.ln = userData.lastName.toLowerCase().trim();
+
+      console.log('Updating Meta Pixel user data:', Object.keys(advancedMatchingData));
+      window.fbq('init', config.pixelId, advancedMatchingData);
+    }
+  }, [config]);
 
   const trackPageView = useCallback(() => {
     if (config?.enabled && window.fbq) {
@@ -174,13 +250,27 @@ export const useFacebookPixel = () => {
   );
 
   const trackPurchase = useCallback(
-    (params: { content_ids: string[]; content_type: string; value: number; currency: string; num_items: number }) => {
+    (params: { 
+      content_ids: string[]; 
+      content_type: string; 
+      value: number; 
+      currency: string; 
+      num_items: number;
+      email?: string;
+      phone?: string;
+    }) => {
       if (config?.enabled && window.fbq) {
-        console.log('Tracking Purchase:', params);
-        window.fbq('track', 'Purchase', params);
+        // Update user data before purchase if provided
+        if (params.email || params.phone) {
+          setUserData({ email: params.email, phone: params.phone });
+        }
+        
+        const { email, phone, ...trackParams } = params;
+        console.log('Tracking Purchase:', trackParams);
+        window.fbq('track', 'Purchase', trackParams);
       }
     },
-    [config]
+    [config, setUserData]
   );
 
   return {
@@ -191,5 +281,6 @@ export const useFacebookPixel = () => {
     trackAddToCart,
     trackInitiateCheckout,
     trackPurchase,
+    setUserData,
   };
 };
