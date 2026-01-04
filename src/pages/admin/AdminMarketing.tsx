@@ -59,6 +59,15 @@ interface MailSettings {
   contact_notification_enabled: boolean;
 }
 
+interface GoogleSettings {
+  ga_measurement_id: string;
+  gtm_id: string;
+  ga_api_secret: string;
+  ga_enabled: boolean;
+  gtm_enabled: boolean;
+  ga_server_enabled: boolean;
+}
+
 export default function AdminMarketing() {
   // Facebook state
   const [pixelId, setPixelId] = useState('');
@@ -68,6 +77,19 @@ export default function AdminMarketing() {
   const [testEventCode, setTestEventCode] = useState('');
   const [savingFb, setSavingFb] = useState(false);
   const [loadingFb, setLoadingFb] = useState(true);
+
+  // Google Analytics state
+  const [googleSettings, setGoogleSettings] = useState<GoogleSettings>({
+    ga_measurement_id: '',
+    gtm_id: '',
+    ga_api_secret: '',
+    ga_enabled: false,
+    gtm_enabled: false,
+    ga_server_enabled: false,
+  });
+  const [savingGoogle, setSavingGoogle] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(true);
+  const [showGaSecret, setShowGaSecret] = useState(false);
 
   // Coupon state
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -102,9 +124,104 @@ export default function AdminMarketing() {
 
   useEffect(() => {
     loadFacebookSettings();
+    loadGoogleSettings();
     loadCoupons();
     loadEmailSettings();
   }, []);
+
+  // Google Analytics functions
+  const loadGoogleSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('key, value')
+        .in('key', [
+          'ga_measurement_id',
+          'gtm_id',
+          'ga_api_secret',
+          'ga_enabled',
+          'gtm_enabled',
+          'ga_server_enabled',
+        ]);
+
+      if (error) throw error;
+
+      const settings: GoogleSettings = {
+        ga_measurement_id: '',
+        gtm_id: '',
+        ga_api_secret: '',
+        ga_enabled: false,
+        gtm_enabled: false,
+        ga_server_enabled: false,
+      };
+
+      data?.forEach((setting) => {
+        switch (setting.key) {
+          case 'ga_measurement_id':
+            settings.ga_measurement_id = setting.value;
+            break;
+          case 'gtm_id':
+            settings.gtm_id = setting.value;
+            break;
+          case 'ga_api_secret':
+            settings.ga_api_secret = setting.value;
+            break;
+          case 'ga_enabled':
+            settings.ga_enabled = setting.value === 'true';
+            break;
+          case 'gtm_enabled':
+            settings.gtm_enabled = setting.value === 'true';
+            break;
+          case 'ga_server_enabled':
+            settings.ga_server_enabled = setting.value === 'true';
+            break;
+        }
+      });
+
+      setGoogleSettings(settings);
+    } catch (error) {
+      console.error('Failed to load Google settings:', error);
+      toast.error('Failed to load Google Analytics settings');
+    } finally {
+      setLoadingGoogle(false);
+    }
+  };
+
+  const handleSaveGoogle = async () => {
+    if (googleSettings.ga_enabled && !googleSettings.ga_measurement_id.trim()) {
+      toast.error('Please enter a GA4 Measurement ID');
+      return;
+    }
+
+    if (googleSettings.gtm_enabled && !googleSettings.gtm_id.trim()) {
+      toast.error('Please enter a GTM Container ID');
+      return;
+    }
+
+    if (googleSettings.ga_server_enabled && (!googleSettings.ga_measurement_id.trim() || !googleSettings.ga_api_secret.trim())) {
+      toast.error('Server-side tracking requires both Measurement ID and API Secret');
+      return;
+    }
+
+    setSavingGoogle(true);
+    try {
+      await Promise.all([
+        upsertSetting('ga_measurement_id', googleSettings.ga_measurement_id.trim()),
+        upsertSetting('gtm_id', googleSettings.gtm_id.trim()),
+        upsertSetting('ga_api_secret', googleSettings.ga_api_secret.trim()),
+        upsertSetting('ga_enabled', googleSettings.ga_enabled.toString()),
+        upsertSetting('gtm_enabled', googleSettings.gtm_enabled.toString()),
+        upsertSetting('ga_server_enabled', googleSettings.ga_server_enabled.toString()),
+      ]);
+
+      toast.success('Google Analytics settings saved successfully');
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error('Failed to save settings');
+    } finally {
+      setSavingGoogle(false);
+    }
+  };
 
   // Facebook functions
   const loadFacebookSettings = async () => {
@@ -397,7 +514,7 @@ export default function AdminMarketing() {
     }
   };
 
-  if (loadingFb && loadingCoupons && loadingEmail) {
+  if (loadingFb && loadingGoogle && loadingCoupons && loadingEmail) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -409,14 +526,18 @@ export default function AdminMarketing() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-display font-bold">Marketing</h1>
-        <p className="text-muted-foreground">Manage Facebook tracking, email notifications, and promotional coupons</p>
+        <p className="text-muted-foreground">Manage tracking, email notifications, and promotional coupons</p>
       </div>
 
       <Tabs defaultValue="facebook" className="space-y-6">
-        <TabsList className="grid w-full max-w-lg grid-cols-3">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="facebook" className="gap-2">
             <Facebook className="h-4 w-4" />
             Meta Pixel
+          </TabsTrigger>
+          <TabsTrigger value="google" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Google
           </TabsTrigger>
           <TabsTrigger value="email" className="gap-2">
             <Mail className="h-4 w-4" />
@@ -585,6 +706,217 @@ export default function AdminMarketing() {
           <Button onClick={handleSaveFacebook} disabled={savingFb} className="gap-2">
             <Save className="h-4 w-4" />
             {savingFb ? 'Saving...' : 'Save Facebook Settings'}
+          </Button>
+        </TabsContent>
+
+        {/* Google Analytics Tab */}
+        <TabsContent value="google" className="space-y-6">
+          {/* Google Tag Manager */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-yellow-600" />
+                    Google Tag Manager (GTM)
+                  </CardTitle>
+                  <CardDescription>
+                    Use GTM to manage all your tracking tags in one place
+                  </CardDescription>
+                </div>
+                <Switch
+                  checked={googleSettings.gtm_enabled}
+                  onCheckedChange={(checked) => setGoogleSettings({ ...googleSettings, gtm_enabled: checked })}
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="gtmId">GTM Container ID</Label>
+                <Input
+                  id="gtmId"
+                  value={googleSettings.gtm_id}
+                  onChange={(e) => setGoogleSettings({ ...googleSettings, gtm_id: e.target.value })}
+                  placeholder="GTM-XXXXXXX"
+                  disabled={!googleSettings.gtm_enabled}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Find your Container ID in GTM → Admin → Container Settings
+                </p>
+              </div>
+
+              {googleSettings.gtm_enabled && googleSettings.gtm_id && (
+                <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    ✓ GTM will load on all pages. Configure your GA4, conversion tracking, and other tags in Google Tag Manager.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Google Analytics 4 */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-blue-600" />
+                    Google Analytics 4 (GA4)
+                  </CardTitle>
+                  <CardDescription>
+                    Direct GA4 integration (use this if you're not using GTM)
+                  </CardDescription>
+                </div>
+                <Switch
+                  checked={googleSettings.ga_enabled}
+                  onCheckedChange={(checked) => setGoogleSettings({ ...googleSettings, ga_enabled: checked })}
+                  disabled={googleSettings.gtm_enabled}
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="gaMeasurementId">Measurement ID</Label>
+                <Input
+                  id="gaMeasurementId"
+                  value={googleSettings.ga_measurement_id}
+                  onChange={(e) => setGoogleSettings({ ...googleSettings, ga_measurement_id: e.target.value })}
+                  placeholder="G-XXXXXXXXXX"
+                  disabled={!googleSettings.ga_enabled && !googleSettings.ga_server_enabled}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Find this in GA4 → Admin → Data Streams → Your Stream
+                </p>
+              </div>
+
+              {googleSettings.gtm_enabled && (
+                <div className="bg-muted/50 border rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground">
+                    💡 GTM is enabled. Configure GA4 within your GTM container instead of here for better control.
+                  </p>
+                </div>
+              )}
+
+              {googleSettings.ga_enabled && googleSettings.ga_measurement_id && !googleSettings.gtm_enabled && (
+                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    ✓ GA4 will track: page_view, view_item, add_to_cart, begin_checkout, purchase
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Server-Side Tracking */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-green-600" />
+                    Server-Side Tracking (Measurement Protocol)
+                  </CardTitle>
+                  <CardDescription>
+                    Send events directly from server - bypasses ad blockers, no Stape.io needed
+                  </CardDescription>
+                </div>
+                <Switch
+                  checked={googleSettings.ga_server_enabled}
+                  onCheckedChange={(checked) => setGoogleSettings({ ...googleSettings, ga_server_enabled: checked })}
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="gaApiSecret">Measurement Protocol API Secret</Label>
+                <div className="relative">
+                  <Input
+                    id="gaApiSecret"
+                    type={showGaSecret ? 'text' : 'password'}
+                    value={googleSettings.ga_api_secret}
+                    onChange={(e) => setGoogleSettings({ ...googleSettings, ga_api_secret: e.target.value })}
+                    placeholder="Enter your API Secret"
+                    disabled={!googleSettings.ga_server_enabled}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3"
+                    onClick={() => setShowGaSecret(!showGaSecret)}
+                  >
+                    {showGaSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Create in GA4 → Admin → Data Streams → Your Stream → Measurement Protocol API secrets
+                </p>
+              </div>
+
+              {googleSettings.ga_server_enabled && googleSettings.ga_api_secret && googleSettings.ga_measurement_id && (
+                <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4 space-y-2">
+                  <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                    ✓ Server-Side Tracking Active
+                  </p>
+                  <ul className="text-xs text-green-700 dark:text-green-300 space-y-1 list-disc list-inside">
+                    <li>begin_checkout - When users start checkout</li>
+                    <li>purchase - Order completion with transaction data</li>
+                    <li>Events sent via Measurement Protocol API</li>
+                  </ul>
+                  <p className="text-xs text-green-600 dark:text-green-400 pt-2">
+                    💡 Server-side events bypass ad blockers for accurate tracking
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Events Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Tracked Events</CardTitle>
+              <CardDescription>E-commerce events that will be sent to Google Analytics</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <Eye className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <p className="font-medium text-sm">page_view</p>
+                    <p className="text-xs text-muted-foreground">Every page visit</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <Eye className="h-5 w-5 text-green-500" />
+                  <div>
+                    <p className="font-medium text-sm">view_item</p>
+                    <p className="text-xs text-muted-foreground">Product views</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <ShoppingCart className="h-5 w-5 text-orange-500" />
+                  <div>
+                    <p className="font-medium text-sm">add_to_cart</p>
+                    <p className="text-xs text-muted-foreground">Cart additions</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <CreditCard className="h-5 w-5 text-purple-500" />
+                  <div>
+                    <p className="font-medium text-sm">purchase</p>
+                    <p className="text-xs text-muted-foreground">Completed orders</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Save Button */}
+          <Button onClick={handleSaveGoogle} disabled={savingGoogle} className="gap-2">
+            <Save className="h-4 w-4" />
+            {savingGoogle ? 'Saving...' : 'Save Google Settings'}
           </Button>
         </TabsContent>
 

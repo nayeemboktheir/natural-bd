@@ -23,6 +23,13 @@ interface TrackEventParams {
   customData?: CustomData;
 }
 
+interface ProductItem {
+  item_id: string;
+  item_name: string;
+  price?: number;
+  quantity?: number;
+}
+
 // Get fbclid from storage (captured by client-side pixel)
 const getFbclid = (): string | null => {
   try {
@@ -71,17 +78,55 @@ const getExternalId = (): string => {
   }
 };
 
+// Get GA client ID from cookie
+const getGAClientId = (): string | null => {
+  try {
+    const match = document.cookie.match(/_ga=([^;]+)/);
+    if (match) {
+      const parts = match[1].split('.');
+      if (parts.length >= 4) {
+        return `${parts[2]}.${parts[3]}`;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+// Get GA session ID from cookie
+const getGASessionId = (): string | null => {
+  try {
+    // Try to find any _ga_ cookie for session
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+      const trimmed = cookie.trim();
+      if (trimmed.startsWith('_ga_')) {
+        const value = trimmed.split('=')[1];
+        if (value) {
+          const parts = value.split('.');
+          if (parts.length >= 3) {
+            return parts[2];
+          }
+        }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 /**
- * Hook for server-side tracking via Meta Conversions API (CAPI)
- * This sends events directly from the server to Facebook for better accuracy
- * and to bypass ad blockers.
+ * Hook for server-side tracking via Meta Conversions API (CAPI) and Google Analytics Measurement Protocol
+ * This sends events directly from the server for better accuracy and to bypass ad blockers.
  */
 export const useServerTracking = () => {
   
   /**
    * Send an event to Facebook Conversions API via edge function
    */
-  const trackServerEvent = useCallback(async ({
+  const trackFacebookEvent = useCallback(async ({
     eventName,
     userData = {},
     customData = {},
@@ -89,7 +134,6 @@ export const useServerTracking = () => {
     try {
       console.log(`[CAPI] Sending ${eventName} event to server...`);
       
-      // Build the request payload with browser data for better matching
       const payload = {
         event_name: eventName,
         user_data: {
@@ -104,8 +148,6 @@ export const useServerTracking = () => {
         custom_data: customData,
         event_source_url: window.location.href,
       };
-      
-      console.log('[CAPI] Payload:', { ...payload, user_data: { ...payload.user_data, email: payload.user_data.email ? '[SET]' : undefined } });
       
       const { data, error } = await supabase.functions.invoke('facebook-capi', {
         body: payload,
@@ -123,6 +165,91 @@ export const useServerTracking = () => {
       return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
     }
   }, []);
+
+  /**
+   * Send an event to Google Analytics via Measurement Protocol edge function
+   */
+  const trackGoogleEvent = useCallback(async (params: {
+    eventName: string;
+    eventParams?: Record<string, unknown>;
+    items?: ProductItem[];
+    value?: number;
+    transactionId?: string;
+  }): Promise<{ success: boolean; error?: string }> => {
+    try {
+      console.log(`[GA Server] Sending ${params.eventName} event...`);
+      
+      const payload = {
+        event_name: params.eventName,
+        client_id: getGAClientId(),
+        session_id: getGASessionId(),
+        params: {
+          ...params.eventParams,
+          currency: 'BDT',
+          value: params.value,
+          transaction_id: params.transactionId,
+          items: params.items,
+          page_location: window.location.href,
+          page_title: document.title,
+        },
+      };
+      
+      const { data, error } = await supabase.functions.invoke('google-analytics', {
+        body: payload,
+      });
+      
+      if (error) {
+        console.error('[GA Server] Error:', error);
+        return { success: false, error: error.message };
+      }
+      
+      console.log('[GA Server] Response:', data);
+      return { success: data?.success ?? false, error: data?.error };
+    } catch (err) {
+      console.error('[GA Server] Exception:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+    }
+  }, []);
+
+  /**
+   * Track both Facebook and Google events simultaneously
+   */
+  const trackServerEvent = useCallback(async ({
+    eventName,
+    userData = {},
+    customData = {},
+  }: TrackEventParams): Promise<{ facebook: { success: boolean; error?: string }; google: { success: boolean; error?: string } }> => {
+    // Map FB event names to GA4 event names
+    const gaEventMap: Record<string, string> = {
+      'PageView': 'page_view',
+      'ViewContent': 'view_item',
+      'AddToCart': 'add_to_cart',
+      'InitiateCheckout': 'begin_checkout',
+      'AddPaymentInfo': 'add_payment_info',
+      'Purchase': 'purchase',
+      'Lead': 'generate_lead',
+    };
+
+    // Convert content_ids to items for GA4
+    const items: ProductItem[] = customData.content_ids?.map(id => ({
+      item_id: id,
+      item_name: id,
+      price: customData.value,
+      quantity: 1,
+    })) || [];
+
+    const [fbResult, gaResult] = await Promise.all([
+      trackFacebookEvent({ eventName, userData, customData }),
+      trackGoogleEvent({
+        eventName: gaEventMap[eventName] || eventName.toLowerCase(),
+        value: customData.value,
+        transactionId: customData.order_id,
+        items,
+      }),
+    ]);
+
+    return { facebook: fbResult, google: gaResult };
+  }, [trackFacebookEvent, trackGoogleEvent]);
   
   /**
    * Track a page view event
@@ -280,6 +407,8 @@ export const useServerTracking = () => {
   
   return {
     trackServerEvent,
+    trackFacebookEvent,
+    trackGoogleEvent,
     trackPageView,
     trackViewContent,
     trackAddToCart,
