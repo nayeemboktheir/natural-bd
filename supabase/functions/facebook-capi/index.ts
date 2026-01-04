@@ -9,6 +9,7 @@ const corsHeaders = {
 interface ConversionEvent {
   event_name: string;
   event_time: number;
+  event_id?: string; // For deduplication with browser pixel
   action_source: string;
   event_source_url?: string;
   user_data: {
@@ -16,6 +17,7 @@ interface ConversionEvent {
     ph?: string[];
     fn?: string[];
     ln?: string[];
+    external_id?: string[];
     client_ip_address?: string;
     client_user_agent?: string;
     fbc?: string;
@@ -26,6 +28,7 @@ interface ConversionEvent {
     value?: number;
     content_ids?: string[];
     content_type?: string;
+    content_name?: string;
     num_items?: number;
     order_id?: string;
   };
@@ -38,16 +41,21 @@ interface RequestBody {
     phone?: string;
     first_name?: string;
     last_name?: string;
+    external_id?: string;
+    fbc?: string; // Click ID cookie
+    fbp?: string; // Browser ID cookie
   };
   custom_data?: {
     currency?: string;
     value?: number;
     content_ids?: string[];
     content_type?: string;
+    content_name?: string;
     num_items?: number;
     order_id?: string;
   };
   event_source_url?: string;
+  event_id?: string; // For deduplication
 }
 
 // Hash function for user data (SHA-256)
@@ -159,11 +167,14 @@ serve(async (req) => {
       client_user_agent: req.headers.get("user-agent") || undefined,
     };
 
+    // Hash and add email
     if (body.user_data.email) {
       userData.em = [await hashData(body.user_data.email)];
+      console.log("Added hashed email");
     }
+    
+    // Hash and add phone with Bangladesh country code normalization
     if (body.user_data.phone) {
-      // Clean phone - remove non-digits, ensure country code
       let cleanPhone = body.user_data.phone.replace(/\D/g, "");
       // Add Bangladesh country code if not present
       if (cleanPhone.startsWith("01")) {
@@ -172,27 +183,61 @@ serve(async (req) => {
         cleanPhone = "880" + cleanPhone;
       }
       userData.ph = [await hashData(cleanPhone)];
-      console.log("Hashed phone from:", body.user_data.phone);
+      console.log("Added hashed phone");
     }
+    
+    // Hash and add name
     if (body.user_data.first_name) {
       userData.fn = [await hashData(body.user_data.first_name)];
     }
     if (body.user_data.last_name) {
       userData.ln = [await hashData(body.user_data.last_name)];
     }
+    
+    // Add external ID for cross-device tracking (already hashed by client or use as-is)
+    if (body.user_data.external_id) {
+      userData.external_id = [body.user_data.external_id];
+      console.log("Added external_id for deduplication");
+    }
+    
+    // Add click ID (fbc) - this is the Meta ClickID for better attribution
+    if (body.user_data.fbc) {
+      userData.fbc = body.user_data.fbc;
+      console.log("Added fbc (Meta ClickID) for attribution");
+    }
+    
+    // Add browser ID (fbp) for better matching
+    if (body.user_data.fbp) {
+      userData.fbp = body.user_data.fbp;
+      console.log("Added fbp (browser ID) for matching");
+    }
+
+    // Generate event ID for deduplication with browser pixel
+    const eventId = body.event_id || `${body.event_name}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     // Build the event
     const event: ConversionEvent = {
       event_name: body.event_name,
       event_time: Math.floor(Date.now() / 1000),
+      event_id: eventId,
       action_source: "website",
-      event_source_url: body.event_source_url || "https://shop.example.com",
+      event_source_url: body.event_source_url || "https://naturaltouchbd.net",
       user_data: userData,
     };
 
     if (body.custom_data) {
       event.custom_data = body.custom_data;
     }
+    
+    console.log("Event match parameters:", {
+      has_email: !!userData.em,
+      has_phone: !!userData.ph,
+      has_external_id: !!userData.external_id,
+      has_fbc: !!userData.fbc,
+      has_fbp: !!userData.fbp,
+      has_ip: !!userData.client_ip_address,
+      has_ua: !!userData.client_user_agent,
+    });
 
     // Build request payload
     const payload: { data: ConversionEvent[]; test_event_code?: string } = {
