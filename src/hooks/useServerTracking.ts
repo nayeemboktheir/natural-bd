@@ -19,6 +19,7 @@ interface CustomData {
 
 interface TrackEventParams {
   eventName: string;
+  eventId?: string; // For deduplication with browser pixel
   userData?: UserData;
   customData?: CustomData;
 }
@@ -128,6 +129,7 @@ export const useServerTracking = () => {
    */
   const trackFacebookEvent = useCallback(async ({
     eventName,
+    eventId,
     userData = {},
     customData = {},
   }: TrackEventParams): Promise<{ success: boolean; error?: string }> => {
@@ -136,6 +138,7 @@ export const useServerTracking = () => {
       
       const payload = {
         event_name: eventName,
+        event_id: eventId, // Pass event ID for deduplication
         user_data: {
           email: userData.email,
           phone: userData.phone,
