@@ -212,12 +212,20 @@ export const useFacebookPixel = () => {
     }
   }, [config]);
 
-  const trackPageView = useCallback(() => {
+  // Generate a unique event ID for deduplication between browser and server
+  const generateEventId = useCallback((eventName: string): string => {
+    return `${eventName}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+  }, []);
+
+  const trackPageView = useCallback((): string | null => {
     if (config?.enabled && window.fbq) {
-      console.log('Tracking PageView');
-      window.fbq('track', 'PageView');
+      const eventId = generateEventId('PageView');
+      console.log('Tracking PageView with eventId:', eventId);
+      window.fbq('track', 'PageView', {}, { eventID: eventId });
+      return eventId;
     }
-  }, [config]);
+    return null;
+  }, [config, generateEventId]);
 
   const trackViewContent = useCallback(
     (params: { content_ids: string[]; content_name: string; content_type: string; value: number; currency: string }) => {
