@@ -266,19 +266,22 @@ export const useFacebookPixel = () => {
       num_items: number;
       email?: string;
       phone?: string;
-    }) => {
+    }): string | null => {
       if (config?.enabled && window.fbq) {
         // Update user data before purchase if provided
         if (params.email || params.phone) {
           setUserData({ email: params.email, phone: params.phone });
         }
-        
+
+        const eventId = generateEventId('Purchase');
         const { email, phone, ...trackParams } = params;
-        console.log('Tracking Purchase:', trackParams);
-        window.fbq('track', 'Purchase', trackParams);
+        console.log('Tracking Purchase with eventId:', eventId, trackParams);
+        window.fbq('track', 'Purchase', trackParams, { eventID: eventId });
+        return eventId;
       }
+      return null;
     },
-    [config, setUserData]
+    [config, setUserData, generateEventId]
   );
 
   return {
