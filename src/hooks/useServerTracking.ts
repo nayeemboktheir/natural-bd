@@ -40,14 +40,34 @@ const getFbclid = (): string | null => {
   }
 };
 
-// Get fbp cookie value
+// Get fbp cookie value - retry with delay if not available yet
 const getFbp = (): string | null => {
   try {
     const match = document.cookie.match(/_fbp=([^;]+)/);
-    return match ? match[1] : null;
+    return match ? decodeURIComponent(match[1]) : null;
   } catch {
     return null;
   }
+};
+
+// Wait for _fbp cookie to be set by Meta Pixel (created after pixel loads)
+const waitForFbp = (maxWaitMs = 2000): Promise<string | null> => {
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+    const checkFbp = () => {
+      const fbp = getFbp();
+      if (fbp) {
+        resolve(fbp);
+        return;
+      }
+      if (Date.now() - startTime < maxWaitMs) {
+        setTimeout(checkFbp, 100);
+      } else {
+        resolve(null);
+      }
+    };
+    checkFbp();
+  });
 };
 
 // Get fbc cookie value (or construct from fbclid)
@@ -126,6 +146,7 @@ export const useServerTracking = () => {
   
   /**
    * Send an event to Facebook Conversions API via edge function
+   * Waits for _fbp cookie if not immediately available (crucial for event matching)
    */
   const trackFacebookEvent = useCallback(async ({
     eventName,
@@ -136,17 +157,37 @@ export const useServerTracking = () => {
     try {
       console.log(`[CAPI] Sending ${eventName} event to server...`);
       
+      // Wait for _fbp cookie if not available yet (gives Meta Pixel time to set it)
+      let fbp = getFbp();
+      if (!fbp && eventName === 'PageView') {
+        console.log('[CAPI] Waiting for _fbp cookie...');
+        fbp = await waitForFbp(2000);
+        console.log('[CAPI] _fbp after wait:', fbp ? 'found' : 'not found');
+      }
+      
+      const fbc = getFbc();
+      const externalId = getExternalId();
+      
+      console.log('[CAPI] Match parameters:', { 
+        hasEventId: !!eventId,
+        hasFbp: !!fbp, 
+        hasFbc: !!fbc, 
+        hasExternalId: !!externalId,
+        hasEmail: !!userData.email,
+        hasPhone: !!userData.phone 
+      });
+      
       const payload = {
         event_name: eventName,
-        event_id: eventId, // Pass event ID for deduplication
+        event_id: eventId, // Pass event ID for deduplication with browser pixel
         user_data: {
           email: userData.email,
           phone: userData.phone,
           first_name: userData.firstName,
           last_name: userData.lastName,
-          external_id: getExternalId(),
-          fbc: getFbc(),
-          fbp: getFbp(),
+          external_id: externalId,
+          fbc: fbc,
+          fbp: fbp,
         },
         custom_data: customData,
         event_source_url: window.location.href,
