@@ -50,6 +50,8 @@ async function sendCapiEvent(
     const { data, error } = await supabase.functions.invoke('facebook-capi', {
       body: {
         event_name: 'Purchase',
+        // Use a stable ID so browser pixel + server CAPI can deduplicate
+        event_id: orderId,
         user_data: {
           phone: phone,
           first_name: name.split(' ')[0] || name,

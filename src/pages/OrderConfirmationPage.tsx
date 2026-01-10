@@ -7,6 +7,7 @@ import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 import { useServerTracking } from '@/hooks/useServerTracking';
 
 interface OrderDetails {
+  orderId?: string;
   orderNumber: string;
   customerName?: string;
   phone?: string;
@@ -25,6 +26,7 @@ const OrderConfirmationPage = () => {
 
   const hasTrackedPurchaseRef = useRef(false);
 
+  const orderId = state?.orderId;
   const orderNumber = state?.orderNumber || '';
   const customerName = state?.customerName;
   const phone = state?.phone;
@@ -34,10 +36,13 @@ const OrderConfirmationPage = () => {
 
   useEffect(() => {
     // Fire Purchase on the thank-you page (pixel + server) so Ads can attribute conversions.
+    // IMPORTANT: use a stable event_id so server-side Purchase (from place-order) can deduplicate.
     if (!orderNumber || !total) return;
     if (hasTrackedPurchaseRef.current) return;
 
-    const storageKey = `purchase_tracked_${orderNumber}`;
+    const stableEventId = orderId || orderNumber;
+
+    const storageKey = `purchase_tracked_${stableEventId}`;
     try {
       if (localStorage.getItem(storageKey) === '1') return;
     } catch {
@@ -54,8 +59,9 @@ const OrderConfirmationPage = () => {
           currency: 'BDT',
           num_items: 1,
           phone,
+          eventId: stableEventId,
         })
-      : null;
+      : stableEventId;
 
     trackFacebookEvent({
       eventName: 'Purchase',
@@ -99,6 +105,7 @@ const OrderConfirmationPage = () => {
       // ignore
     }
   }, [
+    orderId,
     orderNumber,
     total,
     phone,
