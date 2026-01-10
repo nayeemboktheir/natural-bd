@@ -266,6 +266,8 @@ export const useFacebookPixel = () => {
       num_items: number;
       email?: string;
       phone?: string;
+      /** Optional stable event id for deduplication with server-side CAPI */
+      eventId?: string;
     }): string | null => {
       if (config?.enabled && window.fbq) {
         // Update user data before purchase if provided
@@ -273,8 +275,8 @@ export const useFacebookPixel = () => {
           setUserData({ email: params.email, phone: params.phone });
         }
 
-        const eventId = generateEventId('Purchase');
-        const { email, phone, ...trackParams } = params;
+        const eventId = params.eventId || generateEventId('Purchase');
+        const { email, phone, eventId: _ignored, ...trackParams } = params;
         console.log('Tracking Purchase with eventId:', eventId, trackParams);
         window.fbq('track', 'Purchase', trackParams, { eventID: eventId });
         return eventId;
