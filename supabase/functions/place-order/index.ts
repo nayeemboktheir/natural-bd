@@ -33,19 +33,22 @@ function isBangladeshPhone(phone: string) {
 // Background task: Send Facebook CAPI event
 async function sendCapiEvent(
   supabaseUrl: string,
+  serviceKey: string,
   phone: string,
   name: string,
   total: number,
   itemsFinal: Array<{ productId: string | null; name: string; quantity: number }>,
-  orderId: string
+  orderId: string,
+  eventSourceUrl?: string
 ) {
   try {
     console.log('Sending Purchase event to Facebook CAPI...');
-    const capiUrl = `${supabaseUrl}/functions/v1/facebook-capi`;
-    const capiResponse = await fetch(capiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+
+    // IMPORTANT: call backend function with service role auth so it doesn't get blocked by JWT verification
+    const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+
+    const { data, error } = await supabase.functions.invoke('facebook-capi', {
+      body: {
         event_name: 'Purchase',
         user_data: {
           phone: phone,
@@ -60,11 +63,17 @@ async function sendCapiEvent(
           num_items: itemsFinal.reduce((sum, i) => sum + i.quantity, 0),
           order_id: orderId,
         },
-        event_source_url: 'https://shop.example.com/checkout',
-      }),
+        // Avoid hardcoded URLs to prevent domain-mismatch attribution issues
+        event_source_url: eventSourceUrl,
+      },
     });
-    const capiResult = await capiResponse.json();
-    console.log('CAPI response:', JSON.stringify(capiResult));
+
+    if (error) {
+      console.error('CAPI invoke error:', error);
+      return;
+    }
+
+    console.log('CAPI invoke response:', JSON.stringify(data));
   } catch (capiError) {
     console.error('Failed to send CAPI event:', capiError);
   }
@@ -436,10 +445,13 @@ Deno.serve(async (req) => {
     
     const orderNumber = orderData?.order_number || orderId;
 
+    // Best-effort: infer the real page URL to avoid attribution/domain mismatch
+    const eventSourceUrl = req.headers.get('origin') || req.headers.get('referer') || undefined;
+
     // Schedule background tasks using EdgeRuntime.waitUntil
     // These run after the response is sent, so the user doesn't wait
     const backgroundTasks = Promise.all([
-      sendCapiEvent(supabaseUrl, phone, name, total, itemsFinal, orderId),
+      sendCapiEvent(supabaseUrl, serviceKey, phone, name, total, itemsFinal, orderId, eventSourceUrl),
       sendOrderSms(supabaseUrl, serviceKey, phone, name, orderNumber, total, orderId),
       sendOrderEmail(supabaseUrl, orderId, orderNumber, name, phone, address, subtotal, shippingCost, total, itemsFinal, notes),
     ]);
