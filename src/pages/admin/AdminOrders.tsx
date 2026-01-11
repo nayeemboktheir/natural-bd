@@ -262,11 +262,14 @@ export default function AdminOrders() {
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     setUpdating(true);
     try {
-      await updateOrderStatus(orderId, newStatus, trackingNumber || undefined);
+      // Find the order to get the previous status
+      const order = orders.find(o => o.id === orderId);
+      const previousStatus = order?.status;
+      
+      await updateOrderStatus(orderId, newStatus, trackingNumber || undefined, previousStatus);
       toast.success('Order status updated');
       
       // Send SMS notification for status change
-      const order = orders.find(o => o.id === orderId);
       if (order) {
         sendStatusSms(order, newStatus);
       }
@@ -463,7 +466,7 @@ export default function AdminOrders() {
 
       for (const order of ordersToUpdate) {
         try {
-          await updateOrderStatus(order.id, newStatus);
+          await updateOrderStatus(order.id, newStatus, undefined, order.status);
           sendStatusSms(order, newStatus);
           successCount++;
         } catch (error) {

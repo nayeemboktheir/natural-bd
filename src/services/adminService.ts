@@ -223,7 +223,7 @@ export const getAllOrders = async () => {
   return data;
 };
 
-export const updateOrderStatus = async (id: string, status: string, trackingNumber?: string) => {
+export const updateOrderStatus = async (id: string, status: string, trackingNumber?: string, previousStatus?: string) => {
   const updates: { status: string; tracking_number?: string } = { status };
   if (trackingNumber) {
     updates.tracking_number = trackingNumber;
@@ -233,10 +233,42 @@ export const updateOrderStatus = async (id: string, status: string, trackingNumb
     .from('orders')
     .update(updates)
     .eq('id', id)
-    .select()
+    .select(`
+      *,
+      order_items (*)
+    `)
     .single();
 
   if (error) throw error;
+
+  // Fire Facebook Purchase CAPI event when order moves to "processing" (confirmed order)
+  if (status === 'processing' && previousStatus !== 'processing' && data) {
+    try {
+      await supabase.functions.invoke('facebook-capi', {
+        body: {
+          event_name: 'Purchase',
+          event_id: data.id, // stable ID for deduplication
+          user_data: {
+            phone: data.shipping_phone,
+            first_name: data.shipping_name?.split(' ')[0] || data.shipping_name,
+            last_name: data.shipping_name?.split(' ').slice(1).join(' ') || undefined,
+          },
+          custom_data: {
+            currency: 'BDT',
+            value: data.total,
+            content_ids: data.order_items?.map((i: { product_id: string | null; product_name: string }) => i.product_id || i.product_name) || [],
+            content_type: 'product',
+            num_items: data.order_items?.reduce((sum: number, i: { quantity: number }) => sum + i.quantity, 0) || 1,
+            order_id: data.id,
+          },
+        },
+      });
+      console.log('Purchase CAPI event sent for order:', data.order_number);
+    } catch (capiError) {
+      console.error('Failed to send Purchase CAPI:', capiError);
+    }
+  }
+
   return data;
 };
 
