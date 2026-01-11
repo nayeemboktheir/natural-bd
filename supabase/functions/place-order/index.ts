@@ -452,8 +452,8 @@ Deno.serve(async (req) => {
 
     // Schedule background tasks using EdgeRuntime.waitUntil
     // These run after the response is sent, so the user doesn't wait
+    // NOTE: Purchase CAPI event is now sent when admin changes status to "processing" (not on order placement)
     const backgroundTasks = Promise.all([
-      sendCapiEvent(supabaseUrl, serviceKey, phone, name, total, itemsFinal, orderId, eventSourceUrl),
       sendOrderSms(supabaseUrl, serviceKey, phone, name, orderNumber, total, orderId),
       sendOrderEmail(supabaseUrl, orderId, orderNumber, name, phone, address, subtotal, shippingCost, total, itemsFinal, notes),
     ]);

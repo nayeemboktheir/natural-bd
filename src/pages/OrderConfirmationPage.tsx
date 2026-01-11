@@ -1,10 +1,7 @@
-import { useEffect, useRef } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Package, Phone, Home, Truck, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useFacebookPixel } from '@/hooks/useFacebookPixel';
-import { useServerTracking } from '@/hooks/useServerTracking';
 
 interface OrderDetails {
   orderId?: string;
@@ -21,102 +18,13 @@ const OrderConfirmationPage = () => {
   const navigate = useNavigate();
   const state = location.state as OrderDetails | null;
 
-  const { trackPurchase: trackClientPurchase, isEnabled: isPixelEnabled, isReady: isPixelReady } = useFacebookPixel();
-  const { trackFacebookEvent, trackGoogleEvent } = useServerTracking();
+  // Purchase tracking is now handled server-side when admin changes status to "processing"
+  // This prevents fake/abandoned orders from being counted in Facebook Ads
 
-  const hasTrackedPurchaseRef = useRef(false);
-
-  const orderId = state?.orderId;
   const orderNumber = state?.orderNumber || '';
   const customerName = state?.customerName;
   const phone = state?.phone;
   const total = state?.total;
-  const fromLandingPage = state?.fromLandingPage;
-  const landingPageSlug = state?.landingPageSlug;
-
-  useEffect(() => {
-    // Fire Purchase on the thank-you page (pixel + server) so Ads can attribute conversions.
-    // IMPORTANT: use a stable event_id so server-side Purchase (from place-order) can deduplicate.
-    if (!orderNumber || !total) return;
-    if (hasTrackedPurchaseRef.current) return;
-
-    const stableEventId = orderId || orderNumber;
-
-    const storageKey = `purchase_tracked_${stableEventId}`;
-    try {
-      if (localStorage.getItem(storageKey) === '1') return;
-    } catch {
-      // ignore
-    }
-
-    hasTrackedPurchaseRef.current = true;
-
-    const eventId = isPixelEnabled && isPixelReady
-      ? trackClientPurchase({
-          content_ids: [orderNumber],
-          content_type: 'product',
-          value: total,
-          currency: 'BDT',
-          num_items: 1,
-          phone,
-          eventId: stableEventId,
-        })
-      : stableEventId;
-
-    trackFacebookEvent({
-      eventName: 'Purchase',
-      eventId: eventId || undefined,
-      userData: {
-        phone,
-        firstName: customerName?.split(' ')[0],
-        lastName: customerName?.split(' ').slice(1).join(' ') || undefined,
-      },
-      customData: {
-        currency: 'BDT',
-        value: total,
-        content_ids: [orderNumber],
-        content_type: 'product',
-        num_items: 1,
-        order_id: orderNumber,
-      },
-    }).catch(() => {
-      // ignore
-    });
-
-    trackGoogleEvent({
-      eventName: 'purchase',
-      value: total,
-      transactionId: orderNumber,
-      items: [
-        {
-          item_id: orderNumber,
-          item_name: landingPageSlug ? `landing:${landingPageSlug}` : 'landing',
-          price: total,
-          quantity: 1,
-        },
-      ],
-    }).catch(() => {
-      // ignore
-    });
-
-    try {
-      localStorage.setItem(storageKey, '1');
-    } catch {
-      // ignore
-    }
-  }, [
-    orderId,
-    orderNumber,
-    total,
-    phone,
-    customerName,
-    landingPageSlug,
-    isPixelEnabled,
-    isPixelReady,
-    trackClientPurchase,
-    trackFacebookEvent,
-    trackGoogleEvent,
-  ]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-green-50 to-white py-12 px-4">
