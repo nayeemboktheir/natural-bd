@@ -1,7 +1,10 @@
+import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Package, Phone, Home, Truck, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useFacebookPixel } from '@/hooks/useFacebookPixel';
+import { useServerTracking } from '@/hooks/useServerTracking';
 
 interface OrderDetails {
   orderId?: string;
@@ -9,6 +12,8 @@ interface OrderDetails {
   customerName?: string;
   phone?: string;
   total?: number;
+  contentIds?: string[];
+  numItems?: number;
   fromLandingPage?: boolean;
   landingPageSlug?: string;
 }
@@ -17,14 +22,65 @@ const OrderConfirmationPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const state = location.state as OrderDetails | null;
-
-  // Purchase tracking is now handled server-side when admin changes status to "processing"
-  // This prevents fake/abandoned orders from being counted in Facebook Ads
+  const { trackPurchase: trackClientPurchase, isEnabled, isReady } = useFacebookPixel();
+  const { trackFacebookEvent, trackGoogleEvent } = useServerTracking();
+  const hasTrackedRef = useRef(false);
 
   const orderNumber = state?.orderNumber || '';
+  const orderId = state?.orderId;
   const customerName = state?.customerName;
   const phone = state?.phone;
   const total = state?.total;
+  const contentIds = state?.contentIds || [];
+  const numItems = state?.numItems || 1;
+
+  // Track Purchase event when confirmation page loads
+  useEffect(() => {
+    if (!isEnabled || !isReady || hasTrackedRef.current || !total || !orderNumber) return;
+    hasTrackedRef.current = true;
+
+    const stableEventId = orderId || orderNumber;
+
+    // Browser pixel Purchase
+    trackClientPurchase({
+      value: total,
+      currency: 'BDT',
+      content_ids: contentIds.length > 0 ? contentIds : [orderNumber],
+      content_type: 'product',
+      num_items: numItems,
+      phone: phone,
+      eventId: stableEventId,
+    });
+
+    // Server-side CAPI Purchase
+    trackFacebookEvent({
+      eventName: 'Purchase',
+      eventId: stableEventId,
+      userData: {
+        phone: phone,
+        firstName: customerName?.split(' ')[0],
+        lastName: customerName?.split(' ').slice(1).join(' ') || undefined,
+      },
+      customData: {
+        currency: 'BDT',
+        value: total,
+        content_ids: contentIds.length > 0 ? contentIds : [orderNumber],
+        content_type: 'product',
+        num_items: numItems,
+        order_id: stableEventId,
+      },
+    }).then(result => {
+      console.log('Confirmation page CAPI Purchase result:', result);
+    });
+
+    // Google Analytics purchase
+    trackGoogleEvent({
+      eventName: 'purchase',
+      value: total,
+      transactionId: stableEventId,
+      items: contentIds.map(id => ({ item_id: id, item_name: id, quantity: 1 })),
+    }).catch(err => console.error('GA purchase error:', err));
+  }, [isEnabled, isReady, total, orderNumber, orderId, contentIds, numItems, phone, customerName, trackClientPurchase, trackFacebookEvent, trackGoogleEvent]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-green-50 to-white py-12 px-4">
