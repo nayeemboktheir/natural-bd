@@ -32,6 +32,10 @@ interface ConversionEvent {
     num_items?: number;
     order_id?: string;
   };
+  // Data Processing Options for Limited Data Use (LDU) compliance
+  data_processing_options?: string[];
+  data_processing_options_country?: number;
+  data_processing_options_state?: number;
 }
 
 interface RequestBody {
@@ -96,7 +100,7 @@ serve(async (req) => {
     const { data: settings, error: settingsError } = await supabaseClient
       .from("admin_settings")
       .select("key, value")
-      .in("key", ["fb_pixel_id", "fb_capi_token", "fb_capi_access_token", "fb_capi_enabled", "fb_test_event_code"]);
+      .in("key", ["fb_pixel_id", "fb_capi_token", "fb_capi_access_token", "fb_capi_enabled", "fb_test_event_code", "fb_ldu_enabled"]);
 
     if (settingsError) {
       console.error("Failed to fetch settings:", settingsError);
@@ -112,6 +116,7 @@ serve(async (req) => {
     let capiToken = "";
     let capiEnabled = false;
     let testEventCode = "";
+    let lduEnabled = false;
 
     settings?.forEach((setting: { key: string; value: string }) => {
       const isSecret = setting.key.includes('token') || setting.key.includes('access');
@@ -130,10 +135,13 @@ serve(async (req) => {
         case "fb_test_event_code":
           testEventCode = setting.value;
           break;
+        case "fb_ldu_enabled":
+          lduEnabled = setting.value === "true";
+          break;
       }
     });
 
-    console.log("CAPI Config - Enabled:", capiEnabled, "Pixel ID:", pixelId, "Has Token:", !!capiToken, "Test Code:", testEventCode);
+    console.log("CAPI Config - Enabled:", capiEnabled, "Pixel ID:", pixelId, "Has Token:", !!capiToken, "Test Code:", testEventCode, "LDU:", lduEnabled);
 
     if (!capiEnabled) {
       console.log("CAPI is disabled");
@@ -230,6 +238,16 @@ serve(async (req) => {
 
     if (body.custom_data) {
       event.custom_data = body.custom_data;
+    }
+
+    // Add Limited Data Use (LDU) options if enabled for data sharing restrictions compliance
+    // This is required when Meta applies "core setup" category restrictions
+    // See: https://www.facebook.com/business/help/124742407297678
+    if (lduEnabled) {
+      event.data_processing_options = ["LDU"];
+      event.data_processing_options_country = 0; // Let Meta determine country from IP
+      event.data_processing_options_state = 0;   // Let Meta determine state from IP
+      console.log("LDU (Limited Data Use) enabled for this event");
     }
     
     console.log("Event match parameters:", {
